@@ -14,7 +14,6 @@ import sys
 import threading
 import traceback
 from datetime import datetime as DT
-from elasticsearch import Elasticsearch, helpers
 import configparser
 import requests
 import pravega_client
@@ -310,12 +309,7 @@ def writeInvalidJason(directory, outdata, name_prefix='invalid'):
 config = configparser.ConfigParser()
 config.read('config.ini')
 listenerport = config['SystemInformation']['ListenerPort']
-elastic_ip = config['ElasticSearchDetails']['ElasticSearchIP']
-elastic_port = config['ElasticSearchDetails']['ElasticSearchPort']
-elastic_index = config['ElasticSearchDetails']['ElasticSearchIndex']
-elastic_type = config['ElasticSearchDetails']['ElasticSearchType']
-#elastic_url = "http://{}:{}/{}/{}".format(elastic_ip, elastic_port, elastic_index, elastic_type)
-#listenerport = str(args['p']).strip()
+
 listenerip = get_ip()
 report_location = os.path.join("JSON")
 init_logger(report_location,listenerport)
