@@ -18,29 +18,23 @@ from elasticsearch import Elasticsearch, helpers
 import configparser
 import requests
 import pravega_client
-### Print the tool banner
-#from InfluxWriter import InfluxWriter
+import settings 
+
 from http_parser.http import HttpStream
 from http_parser.reader import SocketReader
 
-#print('Redfish Event Listener v1.0.2')
-os.chdir(os.path.dirname(os.path.realpath(__file__)))
-#parser = argparse.ArgumentParser( description = "Python redfish listener")
-#parser.add_argument('-p', help = 'Listening Port',default = 40096, required = False)
-#parser.add_argument('-l', help = 'Local Path to save report json files', required = True)
-#parser.add_argument('-v', help = 'verbose logging', required = False)
-#parser.add_argument('script_examples', action = "store_true",help = "-p 443" )
 
-#args = vars(parser.parse_args())
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+
 
 useSSL = True
 verbose = False
 certcheck = False
 
-pravega_ip = "127.64.25.48"
-pravega_port = "9090"
-pravega_scope = "dell-scope5"
-pravega_stream = "dell-stream5"
+pravega_ip = settings.pravega.host
+pravega_port = settings.pravega.port
+pravega_scope = settings.pravega.scope
+pravega_stream = settings.pravega.stream
 
 if useSSL:
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -51,11 +45,6 @@ signal.signal(signal.SIGINT, lambda x, y: sys.exit(0))
 
 
 
-# elastic_ip = "100.102.128.28"
-# elastic_port = "8080"
-# elastic_index = "telemetry"
-# elastic_type = "_doc"
-#elastic_url = "http://{}:{}/{}/{}".format(elastic_ip, elastic_port, elastic_index, elastic_type)
 
 
 def init_logger(report_location, listenerport):
@@ -188,41 +177,6 @@ def GetPostPayload(AttributeNameList, AttributeValueList, DataType="string"):
     return payload
 
 
-### Create Subsciption on the servers provided by users if any
-def PerformSubscription():
-    global ServerIPs, UserNames, Passwords, Destination, EventTypes, ContextDetail, Protocol, SubscriptionURI, verbose
-    ServerIPList = [x for x in ServerIPs.split(",") if x.strip() != '']
-    UserNameList = UserNames.split(",")
-    PasswordList = Passwords.split(",")
-    AttributeNameList = ['Destination', 'EventTypes', 'Context', 'Protocol']
-    AttributeValueList = [Destination, EventTypes, ContextDetail, Protocol]
-
-    if (len(ServerIPList) == len(UserNameList) == len(PasswordList)) and (len(ServerIPList) > 0):
-        #print("Count of Server is ", len(ServerIPList))
-        payload = GetPostPayload(AttributeNameList, AttributeValueList, "string")
-        for i in range(0, len(ServerIPList)):
-            #print("ServerIPList:::", ServerIPList[i])
-            #print("UserNameList:::", UserNameList[i])
-            statusCode, Status, body, headers, ExecTime = callResourceURI(ServerIPList[i].strip(), SubscriptionURI,
-                                                                          Method='POST', payload=payload, header=None,
-                                                                          LocalUser=UserNameList[i].strip(),
-                                                                          LocalPassword=PasswordList[i].strip())
-
-            if Status:
-                pass
-                #print("Subcription is successful for %s" % ServerIPList[i])
-
-            else:
-                pass
-                #print("Subcription is not successful for %s or it is already present." % ServerIPList[i])
-
-    else:
-        pass
-        #print("\nNo subscriptions are specified. Continuing with Listener.")
-
-    #print("\nContinuing with Listener.")
-
-
 ### Function to read data in json format using HTTP Stream reader, parse Headers and Body data, Response status OK to service and Update the output into file
 def process_data(newsocketconn, fromaddr,threads):
     if useSSL:
@@ -267,9 +221,7 @@ def process_data(newsocketconn, fromaddr,threads):
                     threads.append(raw_file_thread)
                     raw_file_thread.start()
 
-                    #influx_thread = threading.Thread(target=writeReportToInflux, args=(fromaddr[0],directory, outdata),name=f"{fromaddr[0]}_I")
-                    #threads.append(influx_thread)
-                    #influx_thread.start()
+
 
                 StatusCode = """HTTP/1.1 200 OK\r\n\r\n"""
                 connstreamout.send(bytes(StatusCode, 'UTF-8'))
@@ -334,44 +286,11 @@ def writeRawJson(directory, outdata, server_ip):
         # write into Pravega stream without specifying the routing key.
         #jsol_data = """{"key":"value"}"""
         writer.write_event(str_data)
-        #elastic = Elasticsearch("{}:{}".format(elastic_ip,elastic_port))   
-        #response = helpers.bulk(elastic, json_list_data, index=elastic_index, doc_type=elastic_type)
-        
-            
-        #awsr_payload = json_list_data[0]
-        # headers = {
-        #       "content-type": "application/json",
-        #       }
-        # print("elastic_url",elastic_url)
-        # try:
-        #     response = requests.request("POST", elastic_url, json=metric_value_data, headers=headers, verify = False)
-        # except:
-        #     print("Failed to connect to Elastic Search")
-        # print(response.status_code)
-        # print(response.text)
-        # if response.status_code == 200 or response.status_code == 201:
-        #     print("Logs has been Successfully updated into ELK!!!")
-        # else:
-        #     print("Logs has not been Uploaded into ELK!!!")
-        """
-        report_sequence = outdata.get('ReportSequence', '00000')
-        report_timestamp = outdata.get('Timestamp', '00000').replace(':', '')
-        local_time_stamp = DT.now().strftime("%H%M%S.%f")
-        json_filename = f"{local_time_stamp}_{id}_{report_sequence}_{report_timestamp}.json"
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-        with open(os.path.join(directory, json_filename), 'w', errors='ignore') as file:  # Use file to refer to the file object
-            file.write(json.dumps(outdata, sort_keys=True, indent=4))
-        logging.info(f"Writen file {json_filename} ")
-        """
+
     except Exception as e:
         logging.exception("Failed to send data to ELK")
 
-def writeReportToInflux(idrac_ip, directory, outdata):
-    global listenerport
-    influx_write_status = InfluxWriter('subscriptions').writeDataToInflux(idrac_ip,outdata,destination_id="123_"+listenerport)
-    if not influx_write_status:
-        writeInvalidJason(directory,outdata, "invalid_for_influx")
+
 
 def writeInvalidJason(directory, outdata, name_prefix='invalid'):
   try:
