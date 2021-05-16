@@ -1,10 +1,10 @@
 # unboundedhackathon
 Unbounded Hackathon  by Dell Technologies
 
-# Storing Redfish Telemetry Events in Elastic Search using Pravega 
+# Storing Redfish Telemetry Metrics in Elastic Search using Pravega 
 
-This project demonstrates ,how we can collect Redfish Telemetry Events using Python redfish listener and write events to Pravega Streams. We can also 
-read those events from stream and stores it in Elastic Search. 
+This project demonstrates, how we can collect Redfish Telemetry Metrics using Python redfish listener and write metrics to Pravega Streams. We can also 
+read those data from stream and stores it in Elastic Search. 
 
 ## Getting Started
 
